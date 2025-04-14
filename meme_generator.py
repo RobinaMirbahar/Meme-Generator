@@ -18,7 +18,7 @@ if 'final_meme' not in st.session_state:
     st.session_state.final_meme = None
 
 # Configuration (replace with your actual values)
-PROJECT_ID = "your-project-id"
+PROJECT_ID = "cloud-champion-innovator"
 LOCATION = "us-central1"
 client_options = {"api_endpoint": f"{LOCATION}-aiplatform.googleapis.com"}
 client = PredictionServiceClient(client_options=client_options)
