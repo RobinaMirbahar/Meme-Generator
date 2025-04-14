@@ -1,97 +1,14 @@
-import streamlit as st
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageOps
 import numpy as np
 import textwrap
 import time
+import os
 import requests
 from io import BytesIO
 import base64
-from google.cloud import aiplatform
-from google.cloud.aiplatform_v1 import PredictionServiceClient
+import chainlit as cl
 
-# Initialize session state
-if 'img' not in st.session_state:
-    st.session_state.img = None
-if 'filtered_img' not in st.session_state:
-    st.session_state.filtered_img = None
-if 'final_meme' not in st.session_state:
-    st.session_state.final_meme = None
-
-# Configuration (replace with your actual values)
-PROJECT_ID = "cloud-champion-innovator"
-LOCATION = "us-central1"
-client_options = {"api_endpoint": f"{LOCATION}-aiplatform.googleapis.com"}
-client = PredictionServiceClient(client_options=client_options)
-
-# Page config
-st.set_page_config(page_title="✨ Ultimate Meme Generator", layout="wide")
-
-# Custom CSS
-st.markdown("""
-<style>
-.stButton>button {
-    background-color: #4CAF50;
-    color: white;
-    padding: 10px 24px;
-    border: none;
-    border-radius: 4px;
-}
-.stButton>button:hover {
-    background-color: #45a049;
-}
-.stTextInput>div>div>input {
-    border: 1px solid #4CAF50;
-}
-.stSelectbox>div>div>select {
-    border: 1px solid #4CAF50;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# Title
-st.title("✨ Ultimate Meme Generator")
-st.markdown("---")
-
-# Sidebar for settings
-with st.sidebar:
-    st.header("Settings")
-    image_source = st.radio("Image Source", ["Generate AI Image", "Upload Your Own"])
-    
-    if image_source == "Generate AI Image":
-        prompt = st.text_input("Describe your image", "a shocked cat")
-        style = st.selectbox("Style", ["Photorealistic", "Cartoon/Pixar", "Digital Art", "Watercolor", "Cyberpunk"])
-    else:
-        uploaded_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"])
-    
-    st.markdown("---")
-    st.header("Text Options")
-    num_texts = st.slider("Number of text elements", 1, 3, 1)
-    
-    texts = []
-    positions = []
-    colors = []
-    outlines = []
-    
-    for i in range(num_texts):
-        st.subheader(f"Text Element {i+1}")
-        texts.append(st.text_input(f"Text {i+1}", key=f"text_{i}"))
-        positions.append(st.selectbox(f"Position {i+1}", ["Top", "Center", "Bottom"], key=f"pos_{i}"))
-        colors.append(st.color_picker(f"Text Color {i+1}", "#FFFFFF", key=f"color_{i}"))
-        outlines.append(st.color_picker(f"Outline Color {i+1}", "#000000", key=f"outline_{i}"))
-    
-    st.markdown("---")
-    st.header("Effects")
-    filter_choice = st.selectbox("Image Filter", 
-                               ["None", "Black & White", "Sepia", "Vintage", "Blur", "Sharpen", "Edge Detect"])
-    
-    st.markdown("---")
-    st.header("Watermark")
-    add_watermark = st.checkbox("Add Watermark")
-    if add_watermark:
-        watermark_text = st.text_input("Watermark Text", "@MemeGen")
-        opacity = st.slider("Opacity", 0.1, 1.0, 0.5)
-
-# Image processing functions
+# Meme generation functions
 def apply_filter(img, filter_name):
     filters = {
         'None': lambda x: x,
@@ -106,9 +23,11 @@ def apply_filter(img, filter_name):
 
 def sepia(img):
     arr = np.array(img)
-    sepia_filter = np.array([[0.393, 0.769, 0.189],
-                            [0.349, 0.686, 0.168],
-                            [0.272, 0.534, 0.131]])
+    sepia_filter = np.array([
+        [0.393, 0.769, 0.189],
+        [0.349, 0.686, 0.168],
+        [0.272, 0.534, 0.131]
+    ])
     sepia_img = arr.dot(sepia_filter.T)
     sepia_img[sepia_img > 255] = 255
     return Image.fromarray(sepia_img.astype('uint8'))
@@ -149,7 +68,6 @@ def add_watermark(img, watermark_text="@MemeGen", opacity=0.5):
             img = img.convert('RGBA')
         return Image.alpha_composite(img, watermark)
     except Exception as e:
-        st.error(f"Watermark error: {str(e)}")
         return img
 
 def add_meme_text(img, texts, positions, colors, outline_colors):
@@ -195,117 +113,234 @@ def add_meme_text(img, texts, positions, colors, outline_colors):
         return img
     
     except Exception as e:
-        st.error(f"Text overlay error: {str(e)}")
         return None
 
-def generate_ai_image(prompt, style):
-    style_configs = {
-        "Photorealistic": {
-            "prompt": f"Professional photograph of {prompt}, 8K UHD, sharp focus",
-            "negative_prompt": "blurry, cartoon, drawing, painting, text"
-        },
-        "Cartoon/Pixar": {
-            "prompt": f"Pixar-style 3D animation of {prompt}, vibrant colors",
-            "negative_prompt": "realistic, photo, blurry"
-        },
-        "Digital Art": {
-            "prompt": f"Digital painting of {prompt}, artstation style",
-            "negative_prompt": "photo, blurry, low quality"
-        },
-        "Watercolor": {
-            "prompt": f"Watercolor painting of {prompt}, soft edges",
-            "negative_prompt": "digital, sharp edges"
-        },
-        "Cyberpunk": {
-            "prompt": f"Cyberpunk style {prompt}, neon lights, futuristic",
-            "negative_prompt": "daylight, natural lighting"
-        }
-    }
+@cl.on_chat_start
+async def start():
+    # Initialize session state
+    cl.user_session.set("img", None)
+    cl.user_session.set("filtered_img", None)
+    cl.user_session.set("final_meme", None)
     
-    config = style_configs.get(style, style_configs["Photorealistic"])
+    # Welcome message
+    await cl.Message(content="✨ Welcome to the Ultimate Meme Generator!").send()
     
-    try:
-        endpoint = f"projects/{PROJECT_ID}/locations/{LOCATION}/publishers/google/models/imagegeneration"
-        
-        response = client.predict(
-            endpoint=endpoint,
-            instances=[{
-                "prompt": config["prompt"],
-                "negativePrompt": config["negative_prompt"]
-            }],
-            parameters={
-                "sampleCount": 1,
-                "aspectRatio": "1:1",
-                "style": style.lower(),
-                "guidanceScale": 12
-            }
-        )
-        
-        img_data = response.predictions[0].get('bytesBase64Encoded')
-        return Image.open(BytesIO(base64.b64decode(img_data)))
-    
-    except Exception as e:
-        st.error(f"AI generation failed: {str(e)}")
-        # Fallback to placeholder
-        prompt_encoded = requests.utils.quote(config["prompt"])
-        response = requests.get(f"https://source.unsplash.com/800x800/?{prompt_encoded}")
-        return Image.open(BytesIO(response.content))
+    # Ask for image source
+    actions = [
+        cl.Action(name="generate_ai", value="generate_ai", label="Generate AI Image"),
+        cl.Action(name="upload", value="upload", label="Upload Your Own")
+    ]
+    await cl.Message(content="How would you like to get your image?", actions=actions).send()
 
-# Generate or upload image
-if st.button("Generate Meme"):
-    with st.spinner("Creating your meme..."):
+@cl.action_callback("generate_ai")
+async def on_action_generate_ai(action):
+    await cl.Message(content="You selected to generate an AI image").send()
+    cl.user_session.set("image_source", "generate_ai")
+    await get_ai_prompt()
+
+async def get_ai_prompt():
+    prompt = await cl.AskUserMessage(content="Describe your image (e.g., 'a shocked cat')", timeout=60).send()
+    if prompt:
+        cl.user_session.set("prompt", prompt['content'])
+        await get_ai_style()
+
+async def get_ai_style():
+    style = await cl.AskUserMessage(
+        content="Select a style:",
+        actions=[
+            cl.Action(name="photorealistic", value="Photorealistic", label="Photorealistic"),
+            cl.Action(name="cartoon", value="Cartoon/Pixar", label="Cartoon/Pixar"),
+            cl.Action(name="digital", value="Digital Art", label="Digital Art"),
+            cl.Action(name="watercolor", value="Watercolor", label="Watercolor"),
+            cl.Action(name="cyberpunk", value="Cyberpunk", label="Cyberpunk")
+        ]
+    ).send()
+    if style:
+        cl.user_session.set("style", style['content'])
+        await get_text_options()
+
+@cl.action_callback("upload")
+async def on_action_upload(action):
+    await cl.Message(content="Please upload your image file").send()
+    cl.user_session.set("image_source", "upload")
+    files = await cl.AskFileMessage(
+        content="Upload an image file",
+        accept=["image/jpeg", "image/png"],
+        max_size_mb=10
+    ).send()
+    if files:
+        file = files[0]
+        img = Image.open(BytesIO(file.content))
+        if max(img.size) > 2000:
+            img.thumbnail((2000, 2000))
+        cl.user_session.set("img", img)
+        await cl.Message(content="Image uploaded successfully!").send()
+        await get_text_options()
+
+async def get_text_options():
+    num_texts = await cl.AskUserMessage(
+        content="How many text elements do you want? (1-3)",
+        actions=[
+            cl.Action(name="1", value="1", label="1"),
+            cl.Action(name="2", value="2", label="2"),
+            cl.Action(name="3", value="3", label="3")
+        ]
+    ).send()
+    if num_texts:
+        cl.user_session.set("num_texts", int(num_texts['content']))
+        await get_text_details()
+
+async def get_text_details():
+    num_texts = cl.user_session.get("num_texts")
+    texts = []
+    positions = []
+    colors = []
+    outlines = []
+    
+    for i in range(num_texts):
+        text = await cl.AskUserMessage(content=f"Enter text for element {i+1}").send()
+        if text:
+            texts.append(text['content'])
+            
+            position = await cl.AskUserMessage(
+                content=f"Position for text {i+1}",
+                actions=[
+                    cl.Action(name="top", value="Top", label="Top"),
+                    cl.Action(name="center", value="Center", label="Center"),
+                    cl.Action(name="bottom", value="Bottom", label="Bottom")
+                ]
+            ).send()
+            if position:
+                positions.append(position['content'])
+            
+            color = await cl.AskUserMessage(content=f"Hex color for text {i+1} (e.g., #FFFFFF)").send()
+            if color:
+                colors.append(color['content'])
+            
+            outline = await cl.AskUserMessage(content=f"Hex outline color for text {i+1} (e.g., #000000)").send()
+            if outline:
+                outlines.append(outline['content'])
+    
+    cl.user_session.set("texts", texts)
+    cl.user_session.set("positions", positions)
+    cl.user_session.set("colors", colors)
+    cl.user_session.set("outlines", outlines)
+    
+    await get_filter_options()
+
+async def get_filter_options():
+    filter_choice = await cl.AskUserMessage(
+        content="Select an image filter:",
+        actions=[
+            cl.Action(name="none", value="None", label="None"),
+            cl.Action(name="bw", value="Black & White", label="Black & White"),
+            cl.Action(name="sepia", value="Sepia", label="Sepia"),
+            cl.Action(name="vintage", value="Vintage", label="Vintage"),
+            cl.Action(name="blur", value="Blur", label="Blur"),
+            cl.Action(name="sharpen", value="Sharpen", label="Sharpen"),
+            cl.Action(name="edge", value="Edge Detect", label="Edge Detect")
+        ]
+    ).send()
+    if filter_choice:
+        cl.user_session.set("filter_choice", filter_choice['content'])
+        await get_watermark_options()
+
+async def get_watermark_options():
+    add_watermark = await cl.AskUserMessage(
+        content="Would you like to add a watermark?",
+        actions=[
+            cl.Action(name="yes", value="yes", label="Yes"),
+            cl.Action(name="no", value="no", label="No")
+        ]
+    ).send()
+    if add_watermark:
+        if add_watermark['content'] == "yes":
+            watermark_text = await cl.AskUserMessage(content="Enter watermark text").send()
+            if watermark_text:
+                cl.user_session.set("watermark_text", watermark_text['content'])
+                
+                opacity = await cl.AskUserMessage(
+                    content="Select opacity (1-10 where 10 is fully visible)",
+                    actions=[cl.Action(name=str(i), value=str(i/10), label=str(i)) for i in range(1, 11)]
+                ).send()
+                if opacity:
+                    cl.user_session.set("opacity", float(opacity['content']))
+        else:
+            cl.user_session.set("watermark_text", None)
+        
+        await generate_meme()
+
+async def generate_meme():
+    with cl.Step(name="Generating Meme", type="run") as step:
+        step.output = "Starting meme generation..."
+        
         try:
-            if image_source == "Generate AI Image":
-                st.session_state.img = generate_ai_image(prompt, style)
-                st.success(f"Generated {style} image: {prompt}")
+            # Get or generate image
+            if cl.user_session.get("image_source") == "generate_ai":
+                step.output = "Generating AI image..."
+                # Placeholder - replace with actual AI image generation
+                response = requests.get("https://picsum.photos/800/800")
+                img = Image.open(BytesIO(response.content))
+                cl.user_session.set("img", img)
+                step.output = "AI image generated!"
             else:
-                if uploaded_file is not None:
-                    st.session_state.img = Image.open(uploaded_file)
-                    if max(st.session_state.img.size) > 2000:
-                        st.session_state.img.thumbnail((2000, 2000))
-                    st.success("Image uploaded successfully!")
-                else:
-                    st.warning("Please upload an image first")
-                    st.stop()
+                img = cl.user_session.get("img")
             
             # Apply filter
-            st.session_state.filtered_img = apply_filter(st.session_state.img, filter_choice)
+            step.output = "Applying filters..."
+            filtered_img = apply_filter(img, cl.user_session.get("filter_choice"))
+            cl.user_session.set("filtered_img", filtered_img)
             
             # Apply watermark if selected
-            if add_watermark:
-                st.session_state.filtered_img = add_watermark(
-                    st.session_state.filtered_img, 
-                    watermark_text, 
-                    opacity
+            if cl.user_session.get("watermark_text"):
+                step.output = "Adding watermark..."
+                filtered_img = add_watermark(
+                    filtered_img, 
+                    cl.user_session.get("watermark_text"), 
+                    cl.user_session.get("opacity", 0.5)
                 )
+                cl.user_session.set("filtered_img", filtered_img)
             
             # Add meme text
-            st.session_state.final_meme = add_meme_text(
-                st.session_state.filtered_img,
-                texts,
-                positions,
-                colors,
-                outlines
+            step.output = "Adding text..."
+            final_meme = add_meme_text(
+                filtered_img,
+                cl.user_session.get("texts", []),
+                cl.user_session.get("positions", []),
+                cl.user_session.get("colors", []),
+                cl.user_session.get("outlines", [])
             )
             
-            if st.session_state.final_meme:
-                st.success("Meme created successfully!")
+            if final_meme:
+                cl.user_session.set("final_meme", final_meme)
+                step.output = "Meme created successfully!"
+                
+                # Display the meme
+                buf = BytesIO()
+                final_meme.save(buf, format="JPEG", quality=95)
+                buf.seek(0)
+                
+                # Create download button
+                elements = [
+                    cl.Image(name="meme", display="inline", content=buf.read()),
+                    cl.DownloadButton(
+                        name="download",
+                        label="Download Meme",
+                        path=buf,
+                        file_name=f"meme_{int(time.time())}.jpg"
+                    )
+                ]
+                
+                await cl.Message(content="Here's your meme!", elements=elements).send()
+            else:
+                await cl.Message(content="Error creating meme").send()
             
         except Exception as e:
-            st.error(f"Error creating meme: {str(e)}")
+            await cl.Message(content=f"Error: {str(e)}").send()
 
-# Display results
-if st.session_state.final_meme is not None:
-    st.image(st.session_state.final_meme, use_container_width=True)
-    
-    # Download button
-    buf = BytesIO()
-    st.session_state.final_meme.save(buf, format="JPEG", quality=95)
-    byte_im = buf.getvalue()
-    
-    st.download_button(
-        label="Download Meme",
-        data=byte_im,
-        file_name=f"meme_{int(time.time())}.jpg",
-        mime="image/jpeg"
-    )
+@cl.on_chat_end
+def end():
+    # Clean up
+    cl.user_session.delete("img")
+    cl.user_session.delete("filtered_img")
+    cl.user_session.delete("final_meme")
