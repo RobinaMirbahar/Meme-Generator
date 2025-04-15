@@ -17,19 +17,23 @@ st.set_page_config(
 
 @st.cache_resource
 def get_vertex_client():
-    """Initialize Vertex AI client using credentials from Streamlit Secrets"""
     try:
-        # Load GCP credentials from Streamlit secrets
+        st.write("Checking credentials...")
         gcp_creds = json.loads(st.secrets["gcp"]["credentials"])
-        credentials = service_account.Credentials.from_service_account_info(gcp_creds)
+        st.write("Credentials parsed successfully")
         
-        return initialize_vertex_ai(
+        credentials = service_account.Credentials.from_service_account_info(gcp_creds)
+        st.write("GCP authentication successful")
+        
+        client = initialize_vertex_ai(
             project_id=st.secrets["gcp"]["project_id"],
             location="us-central1",
             credentials=credentials
         )
+        st.write("Vertex AI client initialized")
+        return client
     except Exception as e:
-        st.error(f"Failed to initialize Vertex AI: {str(e)}")
+        st.error(f"Initialization failed: {str(e)}")
         return None
 
 def main():
