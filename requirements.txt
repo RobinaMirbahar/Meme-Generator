@@ -1,11 +1,6 @@
-# Core dependencies
-Pillow==10.3.0        # Image processing
-numpy==1.26.4         # Array operations
-requests==2.31.0      # HTTP requests
-
-# Chainlit for the web interface
-chainlit==2.5.5
-
-
-# Additional image processing libraries
-python-dotenv==1.0.0  # Environment variables
+streamlit>=1.22.0
+google-cloud-aiplatform>=1.25.0
+Pillow>=9.3.0
+requests>=2.28.1
+matplotlib>=3.6.2
+imageio>=2.22.4
