@@ -4,6 +4,8 @@ from utils.meme_creation import add_meme_text, create_gif, image_to_bytes
 from PIL import Image
 import base64
 import os
+import json
+from google.oauth2 import service_account
 
 # Page configuration
 st.set_page_config(
@@ -13,13 +15,22 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Initialize Vertex AI (you'll need to set up your GCP credentials)
-PROJECT_ID = "cloud-champion-innovator"
-LOCATION = "us-central1"
-
 @st.cache_resource
 def get_vertex_client():
-    return initialize_vertex_ai(PROJECT_ID, LOCATION)
+    """Initialize Vertex AI client using credentials from Streamlit Secrets"""
+    try:
+        # Load GCP credentials from Streamlit secrets
+        gcp_creds = json.loads(st.secrets["gcp"]["credentials"])
+        credentials = service_account.Credentials.from_service_account_info(gcp_creds)
+        
+        return initialize_vertex_ai(
+            project_id=st.secrets["gcp"]["project_id"],
+            location="us-central1",
+            credentials=credentials
+        )
+    except Exception as e:
+        st.error(f"Failed to initialize Vertex AI: {str(e)}")
+        return None
 
 def main():
     st.title("🎬 Ultimate Meme Generator")
@@ -28,6 +39,9 @@ def main():
     with st.sidebar:
         st.header("Configuration")
         st.markdown("Set up your meme parameters here")
+        
+        # Add a link to the GitHub repo
+        st.markdown("[View on GitHub](https://github.com/yourusername/meme-generator)")
 
     # Main form
     with st.form("meme_form"):
@@ -38,7 +52,8 @@ def main():
             image_prompt = st.text_area(
                 "What should the image show?",
                 value="a surprised cat looking at a cucumber",
-                help="Be specific! Include details about subject, action, setting, and style."
+                help="Be specific! Include details about subject, action, setting, and style.",
+                max_chars=500
             )
 
             st.subheader("2. Customize Appearance")
@@ -59,7 +74,8 @@ def main():
             st.subheader("3. Add Your Text")
             meme_text = st.text_input(
                 "Meme Text (will be automatically capitalized)",
-                value="WHEN YOU SEE IT"
+                value="WHEN YOU SEE IT",
+                max_chars=100
             )
 
             position = st.selectbox(
@@ -101,70 +117,77 @@ def main():
             return
 
         with st.spinner("🔄 Generating your meme (this may take 20-40 seconds)..."):
-            # Generate image
-            client = get_vertex_client()
-            img = generate_image(
-                image_prompt.strip(),
-                style=style,
-                project_id=PROJECT_ID,
-                location=LOCATION,
-                client=client
-            )
-
-            if img is None:
-                st.warning("AI generation failed, using fallback image")
-                img = get_fallback_image(style)
-                if img is None:
-                    st.error("Failed to generate or load fallback image")
+            try:
+                # Generate image
+                client = get_vertex_client()
+                if client is None:
+                    st.error("Vertex AI client not initialized. Check your GCP credentials.")
                     return
 
-            # Add text overlay
-            result = add_meme_text(
-                img,
-                meme_text.strip(),
-                position=position,
-                text_color=text_color,
-                outline_color=outline_color,
-                animation_effect=animation_effect if output_format == "Animated GIF" else "none"
-            )
-
-            if not result:
-                st.error("Failed to create meme")
-                return
-
-            # Display result
-            st.success("✅ Meme generated successfully!")
-            st.markdown("---")
-
-            if output_format == "Animated GIF" and isinstance(result, list):
-                # Handle GIF
-                gif_bytes = create_gif(result)
-                st.image(gif_bytes, use_column_width=True)
-
-                # Download button
-                st.download_button(
-                    label="⬇️ Download GIF ⬇️",
-                    data=gif_bytes,
-                    file_name="meme.gif",
-                    mime="image/gif"
+                img = generate_image(
+                    image_prompt.strip(),
+                    style=style,
+                    client=client
                 )
-            else:
-                # Handle static image
-                if isinstance(result, list):
-                    final_meme = result[-1]
+
+                if img is None:
+                    st.warning("AI generation failed, using fallback image")
+                    img = get_fallback_image(style)
+                    if img is None:
+                        st.error("Failed to generate or load fallback image")
+                        return
+
+                # Add text overlay
+                result = add_meme_text(
+                    img,
+                    meme_text.strip(),
+                    position=position,
+                    text_color=text_color,
+                    outline_color=outline_color,
+                    animation_effect=animation_effect if output_format == "Animated GIF" else "none"
+                )
+
+                if not result:
+                    st.error("Failed to create meme")
+                    return
+
+                # Display result
+                st.success("✅ Meme generated successfully!")
+                st.markdown("---")
+
+                if output_format == "Animated GIF" and isinstance(result, list):
+                    # Handle GIF
+                    gif_bytes = create_gif(result)
+                    st.image(gif_bytes, use_column_width=True)
+
+                    # Download button
+                    st.download_button(
+                        label="⬇️ Download GIF ⬇️",
+                        data=gif_bytes,
+                        file_name="meme.gif",
+                        mime="image/gif"
+                    )
                 else:
-                    final_meme = result
+                    # Handle static image
+                    if isinstance(result, list):
+                        final_meme = result[-1]
+                    else:
+                        final_meme = result
 
-                st.image(final_meme, use_column_width=True)
+                    st.image(final_meme, use_column_width=True)
 
-                # Download button
-                img_bytes = image_to_bytes(final_meme)
-                st.download_button(
-                    label="⬇️ Download Image ⬇️",
-                    data=img_bytes,
-                    file_name="meme.jpg",
-                    mime="image/jpeg"
-                )
+                    # Download button
+                    img_bytes = image_to_bytes(final_meme)
+                    st.download_button(
+                        label="⬇️ Download Image ⬇️",
+                        data=img_bytes,
+                        file_name="meme.jpg",
+                        mime="image/jpeg"
+                    )
+
+            except Exception as e:
+                st.error(f"An error occurred: {str(e)}")
+                st.error("Please try again or check the console for details")
 
 if __name__ == "__main__":
     # Download the Impact font if not exists
@@ -172,10 +195,14 @@ if __name__ == "__main__":
         os.makedirs("assets")
     
     if not os.path.exists("assets/Impact.ttf"):
-        import requests
-        url = "https://github.com/phoikoi/fonts/raw/main/Impact.ttf"
-        r = requests.get(url)
-        with open("assets/Impact.ttf", "wb") as f:
-            f.write(r.content)
+        try:
+            import requests
+            url = "https://github.com/phoikoi/fonts/raw/main/Impact.ttf"
+            r = requests.get(url, timeout=10)
+            with open("assets/Impact.ttf", "wb") as f:
+                f.write(r.content)
+        except Exception as e:
+            st.error(f"Failed to download font: {str(e)}")
+            # Use default font if download fails
 
     main()
