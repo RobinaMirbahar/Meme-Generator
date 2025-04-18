@@ -156,10 +156,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-Enjoy creating your memes! 🎉
-```
-
-### Key Changes:
-1. **Package Installation**: Added missing dependencies such as `google-auth`, `google-auth-oauthlib`, `google-auth-httplib2`, and `requests`.
-2. **Requirements File**: Provided a `requirements.txt` that can be used to install all necessary packages at once.
-   
