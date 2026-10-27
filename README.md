@@ -1,6 +1,48 @@
 
 # 🎬 Ultimate Meme Generator
 
+![Multimodal_AI](https://img.shields.io/badge/Multimodal_AI-Google_Gemini-4285F4?style=for-the-badge&logo=google&logoColor=white)
+![Stack](https://img.shields.io/badge/Stack-Python_&_Pillow-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![Use_Case](https://img.shields.io/badge/Use_Case-DevRel_&_Tech_Talks-0F9D58?style=for-the-badge&logo=sparkles&logoColor=white)
+![Author](https://img.shields.io/badge/Author-Robina_Mirbahar-181717?style=for-the-badge&logo=github&logoColor=white)
+
+> **Author & Architect:** [Robina Mirbahar](https://github.com/RobinaMirbahar) (Google Developer Expert in Cloud & AI)  
+> **Focus:** Context-Aware Tech & Cloud Engineering Meme Studio Powered by Python & Google Gemini Multimodal API
+
+---
+
+## 🎯 Why I Built AI Developer Meme Generator (Engineering Purpose & Real-World Value)
+
+### 1. 😄 Making Complex Cloud & AI Talks Memorable
+Technical presentations on Kubernetes, IAM permissions, or LLM hallucinations land 10x better with sharp, relatable engineering humor. I built this AI Meme Generator to craft context-aware developer memes automatically.
+
+### 2. 🖼️ Multimodal Vision + Dynamic Typography
+I wired Google Gemini's multimodal reasoning with automated image composition so captions fit template layouts cleanly.
+
+### 3. 🚀 Fast CLI & Web Workflow for Speakers
+Give the generator a technical topic (e.g., *'Cloud Run scale-to-zero vs idle VMs'*) and it produces slide-ready visual punchlines in seconds.
+
+---
+
+## 🏗️ System Architecture
+
+```mermaid
+flowchart TD
+    subgraph Topic ["1. Technical Topic or Image Input"]
+        T_In["Engineering Scenario / Slide Concept"]
+    end
+    subgraph Gemini ["2. Gemini Multimodal Humor Engine"]
+        G_Cap["Context-Aware Punchline Synthesis"]
+        G_Lay["Template & Font Bounding-Box Layout"]
+    end
+    subgraph Out ["3. Slide-Ready Visual Output"]
+        O_Img["Rendered High-DPI PNG Meme"]
+    end
+    T_In --> G_Cap --> G_Lay --> O_Img
+```
+
+---
+
 Welcome to the **Ultimate Meme Generator**! This app allows you to create custom memes with AI-generated images and professional text overlays. You can also add animation effects to make your memes even more entertaining.
 
 ## Features
@@ -176,3 +218,22 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 <div align="center">
   <img src="https://raw.githubusercontent.com/RobinaMirbahar/RobinaMirbahar/main/ProfileImages/GithubBanner.svg" alt="Robina Mirbahar Banner" width="100%" />
 </div>
+
+<!-- AUTHOR_SIGNATURE_START -->
+---
+
+## 👩‍💻 About the Author
+
+**Robina Mirbahar — Google Cloud & AI Architect**  
+*Google Developer Expert (GDE) in Cloud & AI • Published Author • Multi-Agent Systems & Serverless GPU Builder*
+
+[![GitHub](https://img.shields.io/badge/GitHub-RobinaMirbahar-181717?style=for-the-badge&logo=github)](https://github.com/RobinaMirbahar)
+[![Medium](https://img.shields.io/badge/Medium-@robinamirbahar-000000?style=for-the-badge&logo=medium)](https://medium.com/@robinamirbahar)
+[![DEV.to](https://img.shields.io/badge/DEV.to-robinamirbahar-0A0A0A?style=for-the-badge&logo=devdotto)](https://dev.to/robinamirbahar)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Robina_Mirbahar-0A66C2?style=for-the-badge&logo=linkedin)](https://www.linkedin.com/in/robina-mirbahar)
+[![GDE Profile](https://img.shields.io/badge/Google_Developer_Expert-Profile-4285F4?style=for-the-badge&logo=google)](https://g.dev/RobinaMirbahar)
+[![YouTube](https://img.shields.io/badge/YouTube-@RobinaMirbahar-FF0000?style=for-the-badge&logo=youtube)](https://www.youtube.com/@RobinaMirbahar)
+[![X](https://img.shields.io/badge/X-@RobinaMirbahar-000000?style=for-the-badge&logo=x)](https://x.com/RobinaMirbahar)
+[![Amazon Author](https://img.shields.io/badge/Amazon_Book-Cloud_Computing_Voyage-FF9900?style=for-the-badge&logo=amazon)](https://www.amazon.com/dp/B0D146249R)
+
+<!-- AUTHOR_SIGNATURE_END -->
