@@ -237,3 +237,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 [![Amazon Author](https://img.shields.io/badge/Amazon_Book-Cloud_Computing_Voyage-FF9900?style=for-the-badge&logo=amazon)](https://www.amazon.com/dp/B0D146249R)
 
 <!-- AUTHOR_SIGNATURE_END -->
+
+---
+
+### Official Google Developer Resources
+- [Google Gemini API & AI Studio Docs](https://ai.google.dev/gemini-api/docs?utm_campaign=deveco_gdemembers&utm_source=deveco)
