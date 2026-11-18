@@ -39,13 +39,6 @@ flowchart TD
         O_Img["Rendered High-DPI PNG Meme"]
     end
     T_In --> G_Cap --> G_Lay --> O_Img
-    style Topic fill:#fce7f3,stroke:#db2777,stroke-width:2px,color:#831843
-    style T_In fill:#dbeafe,stroke:#2563eb,stroke-width:2px,color:#1e3a8a
-    style Gemini fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#14532d
-    style G_Cap fill:#f3e8ff,stroke:#9333ea,stroke-width:2px,color:#581c87
-    style G_Lay fill:#fce7f3,stroke:#db2777,stroke-width:2px,color:#831843
-    style Out fill:#dbeafe,stroke:#2563eb,stroke-width:2px,color:#1e3a8a
-    style O_Img fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#14532d
 ```
 
 ---
